@@ -196,6 +196,16 @@ config CPU_FREQ_DEFAULT_GOV_HYPER
 	select CPU_FREQ_GOV_HYPER
 	---help---
 	  Use the CPUFreq governor 'HYPER' as default.
+
+config CPU_FREQ_DEFAULT_GOV_YANKACTIVE
+	bool "yankactive"
+	select CPU_FREQ_GOV_YANKACTIVE
+	help
+	  Use the CPUFreq governor 'yankactive' as default. This allows
+	  you to get a full dynamic cpu frequency capable system by simply
+	  loading your cpufreq low-level hardware driver, using the
+	  'yankactive' governor for latency-sensitive workloads.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -263,6 +273,22 @@ config CPU_FREQ_GOV_ONDEMAND
 	  For details, take a look at linux/Documentation/cpu-freq.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_GOV_DARKNESS
+	tristate "'darkness' governor for userspace frequency scaling"
+	depends on CPU_FREQ
+	help
+	  Enable this cpufreq governor when you either want to set the
+	  CPU frequency manually or when a userspace program shall
+	  be able to set the CPU dynamically, like on LART 
+	  <http://www.lartmaker.nl/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_userspace.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  If in doubt, say Y.
 
 config CPU_FREQ_GOV_ELEMENTALX
 	tristate "'elementalx' cpufreq policy governor"
@@ -338,10 +364,6 @@ config CPU_FREQ_GOV_BARRY_ALLEN
 
 	  If in doubt, say N.
   
-config CPU_FREQ_GOV_DARKNESS
-	tristate "'darkness' cpufreq policy governor"	  
-	depends on CPU_FREQ
-
 config CPU_FREQ_GOV_HYPER
 	tristate "'HYPER' cpufreq governor"
 	depends on CPU_FREQ
@@ -349,6 +371,16 @@ config CPU_FREQ_GOV_HYPER
 	  'HYPER' - a tweaked "ondemand" based smart and smooth optimized governor!
 
 	  If in doubt, say Y
+  
+config CPU_FREQ_GOV_YANKACTIVE
+	tristate "'yankactive' cpufreq policy governor"
+	help
+	  'yankactive' - This driver adds a dynamic cpufreq policy governor
+	  designed for latency-sensitive workloads.
+
+	  The governor is based on interactive with just different default settings
+	  and can be achieved using interactive with a script. This is added for
+	  simplification purposes for myself.
 
 config CPU_FREQ_GOV_CONSERVATIVE
 	tristate "'conservative' cpufreq governor"
