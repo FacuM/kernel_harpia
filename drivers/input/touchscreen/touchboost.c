@@ -21,6 +21,8 @@
 #include <linux/time.h>
 #include <linux/slab.h>
 
+#define MIN_TIME_INTERVAL_US (50 * USEC_PER_MSEC)
+
 struct touchboost_inputopen {
 	struct input_handle *handle;
 	struct work_struct inputopen_work;
@@ -41,8 +43,16 @@ inline u64 get_input_time(void)
 static void boost_input_event(struct input_handle *handle,
                 unsigned int type, unsigned int code, int value)
 {
-	if ((type == EV_ABS))
+	u64 now;
+
+	if ((type == EV_ABS)) {
+		now = ktime_to_us(ktime_get());
+
+		if (now - last_input_time < MIN_TIME_INTERVAL_US)
+			return;
+
 		last_input_time = ktime_to_us(ktime_get());
+	}
 }
 
 static int boost_input_connect(struct input_handler *handler,
@@ -84,27 +94,13 @@ static void boost_input_disconnect(struct input_handle *handle)
 }
 
 static const struct input_device_id boost_ids[] = {
-        /* multi-touch touchscreen */
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
-			INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT_MASK(EV_ABS) },
-		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
-			BIT_MASK(ABS_MT_POSITION_X) |
-			BIT_MASK(ABS_MT_POSITION_Y) },
-	},
-	/* touchpad */
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
-			INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
-		.absbit = { [BIT_WORD(ABS_X)] =
-			BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
-	},
-	/* Keypad */
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
-		.evbit = { BIT_MASK(EV_KEY) },
+		.evbit = { BIT_MASK(EV_ABS) },
+		/* assumption: MT_.._X & MT_.._Y are in the same long */
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+				BIT_MASK(ABS_MT_POSITION_X) |
+				BIT_MASK(ABS_MT_POSITION_Y) },
 	},
 	{ },
 };
