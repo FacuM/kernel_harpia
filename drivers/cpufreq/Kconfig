@@ -239,6 +239,10 @@ config CPU_FREQ_DEFAULT_GOV_BARRY_ALLEN
 	  loading your cpufreq low-level hardware driver, using the
 	  'barry_allen' governor for latency-sensitive workloads.
 
+config CPU_FREQ_DEFAULT_GOV_HYPER
+	bool "hyper"
+	select CPU_FREQ_GOV_HYPER
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -534,6 +538,30 @@ config CPU_INPUT_BOOST
 	help
 	  Boosts the CPU on touchscreen and touchpad input. Boost frequencies and
 	  durations are calculated automatically.
+
+config CPU_FREQ_GOV_INTELLIDEMAND
+	tristate "'intellidemand' cpufreq governor"
+	depends on CPU_FREQ
+
+config CPU_FREQ_GOV_SMARTMAX
+	tristate "'smartmax' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+	help
+	  'smartmax' combines ondemand and smartass2
+
+config CPU_FREQ_GOV_ALUCARD
+	tristate "'alucard' cpufreq governor"
+	depends on CPU_FREQ
+
+config CPU_FREQ_GOV_WHEATLEY
+	tristate "'wheatley' cpufreq governor"
+	depends on CPU_FREQ 
+
+config CPU_FREQ_GOV_HYPER
+	tristate "'hyper' cpufreq governor"
+	depends on CPU_FREQ
+	---help---
+	  'hyper' - A tweaked "ondemand" based smart and smooth optimized governor!
 
 config GENERIC_CPUFREQ_CPU0
 	tristate "Generic CPU0 cpufreq driver"

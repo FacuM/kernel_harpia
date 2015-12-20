@@ -1,112 +1,63 @@
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM cpufreq_yankactive
+/* include/linux/powersuspend.h
+ *
+ * Copyright (C) 2007-2008 Google, Inc.
+ * Copyright (C) 2013 Paul Reioux 
+ *
+ * Modified by Jean-Pierre Rasquin <yank555.lu@gmail.com>
+ *
+ *  v1.1 - make powersuspend not depend on a userspace initiator anymore,
+ *         but use a hook in autosleep instead.
+ *
+ *  v1.2 - make kernel / userspace mode switchable
+ *
+ *  v1.3 - add a hook in display panel driver as alternative kernel trigger
+ *
+ *  v1.4 - add a hybrid-kernel mode, accepting both kernel hooks (first wins)
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
 
-#if !defined(_TRACE_CPUFREQ_YANKACTIVE_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_CPUFREQ_YANKACTIVE_H
+#ifndef _LINUX_POWERSUSPEND_H
+#define _LINUX_POWERSUSPEND_H
 
-#include <linux/tracepoint.h>
+#include <linux/list.h>
 
-DECLARE_EVENT_CLASS(set,
-	TP_PROTO(u32 cpu_id, unsigned long targfreq,
-	         unsigned long actualfreq),
-	TP_ARGS(cpu_id, targfreq, actualfreq),
+#define POWER_SUSPEND_INACTIVE	0
+#define POWER_SUSPEND_ACTIVE	1
 
-	TP_STRUCT__entry(
-	    __field(          u32, cpu_id    )
-	    __field(unsigned long, targfreq   )
-	    __field(unsigned long, actualfreq )
-	   ),
+#define POWER_SUSPEND_AUTOSLEEP	0	// Use kernel autosleep as hook
+#define POWER_SUSPEND_USERSPACE	1	// Use fauxclock as trigger
+#define POWER_SUSPEND_PANEL	2	// Use display panel state as hook
+#define POWER_SUSPEND_HYBRID	3	// Use display panel state and autosleep as hook
 
-	TP_fast_assign(
-	    __entry->cpu_id = (u32) cpu_id;
-	    __entry->targfreq = targfreq;
-	    __entry->actualfreq = actualfreq;
-	),
+enum {
+	POWER_SUSPEND_LEVEL_BLANK_SCREEN = 50,
+	POWER_SUSPEND_LEVEL_STOP_DRAWING = 100,
+	POWER_SUSPEND_LEVEL_DISABLE_FB = 150,
+};
 
-	TP_printk("cpu=%u targ=%lu actual=%lu",
-	      __entry->cpu_id, __entry->targfreq,
-	      __entry->actualfreq)
-);
+struct power_suspend {
+	struct list_head link;
+	int level;
+	void (*suspend)(struct power_suspend *h);
+	void (*resume)(struct power_suspend *h);
+};
 
-DEFINE_EVENT(set, cpufreq_yankactive_setspeed,
-	TP_PROTO(u32 cpu_id, unsigned long targfreq,
-	     unsigned long actualfreq),
-	TP_ARGS(cpu_id, targfreq, actualfreq)
-);
+void register_power_suspend(struct power_suspend *handler);
+void unregister_power_suspend(struct power_suspend *handler);
 
-DECLARE_EVENT_CLASS(loadeval,
-	    TP_PROTO(unsigned long cpu_id, unsigned long load,
-		     unsigned long curtarg, unsigned long curactual,
-		     unsigned long newtarg),
-		    TP_ARGS(cpu_id, load, curtarg, curactual, newtarg),
+void set_power_suspend_state_autosleep_hook(int new_state);
+void set_power_suspend_state_panel_hook(int new_state);
 
-	    TP_STRUCT__entry(
-		    __field(unsigned long, cpu_id    )
-		    __field(unsigned long, load      )
-		    __field(unsigned long, curtarg   )
-		    __field(unsigned long, curactual )
-		    __field(unsigned long, newtarg   )
-	    ),
+#endif
 
-	    TP_fast_assign(
-		    __entry->cpu_id = cpu_id;
-		    __entry->load = load;
-		    __entry->curtarg = curtarg;
-		    __entry->curactual = curactual;
-		    __entry->newtarg = newtarg;
-	    ),
 
-	    TP_printk("cpu=%lu load=%lu cur=%lu actual=%lu targ=%lu",
-		      __entry->cpu_id, __entry->load, __entry->curtarg,
-		      __entry->curactual, __entry->newtarg)
-);
 
-DEFINE_EVENT(loadeval, cpufreq_yankactive_target,
-	    TP_PROTO(unsigned long cpu_id, unsigned long load,
-		     unsigned long curtarg, unsigned long curactual,
-		     unsigned long newtarg),
-	    TP_ARGS(cpu_id, load, curtarg, curactual, newtarg)
-);
-
-DEFINE_EVENT(loadeval, cpufreq_yankactive_already,
-	    TP_PROTO(unsigned long cpu_id, unsigned long load,
-		     unsigned long curtarg, unsigned long curactual,
-		     unsigned long newtarg),
-	    TP_ARGS(cpu_id, load, curtarg, curactual, newtarg)
-);
-
-DEFINE_EVENT(loadeval, cpufreq_yankactive_notyet,
-	    TP_PROTO(unsigned long cpu_id, unsigned long load,
-		     unsigned long curtarg, unsigned long curactual,
-		     unsigned long newtarg),
-	    TP_ARGS(cpu_id, load, curtarg, curactual, newtarg)
-);
-
-TRACE_EVENT(cpufreq_yankactive_boost,
-	    TP_PROTO(const char *s),
-	    TP_ARGS(s),
-	    TP_STRUCT__entry(
-		    __string(s, s)
-	    ),
-	    TP_fast_assign(
-		    __assign_str(s, s);
-	    ),
-	    TP_printk("%s", __get_str(s))
-);
-
-TRACE_EVENT(cpufreq_yankactive_unboost,
-	    TP_PROTO(const char *s),
-	    TP_ARGS(s),
-	    TP_STRUCT__entry(
-		    __string(s, s)
-	    ),
-	    TP_fast_assign(
-		    __assign_str(s, s);
-	    ),
-	    TP_printk("%s", __get_str(s))
-);
-
-#endif /* _TRACE_CPUFREQ_YANKACTIVE_H */
-
-/* This part must be outside protection */
-#include <trace/define_trace.h>
