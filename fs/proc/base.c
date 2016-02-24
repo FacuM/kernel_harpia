@@ -3201,9 +3201,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_TASK_CPUFREQ_STATS
 	REG("cpufreq_stats",      S_IRUGO|S_IWUSR, proc_pid_cpufreq_stats_operations),
 #endif
-	NOD("comm",      S_IFREG|S_IRUGO|S_IWUSR,
-			 &proc_tid_comm_inode_operations,
-			 &proc_pid_set_comm_operations, {}),
+	REG("comm",      S_IRUGO|S_IWUSR, proc_pid_set_comm_operations),
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
 	INF("syscall",   S_IRUGO, proc_pid_syscall),
 #endif
