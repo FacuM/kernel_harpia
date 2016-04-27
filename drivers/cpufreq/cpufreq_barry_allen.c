@@ -277,7 +277,7 @@ static unsigned int choose_freq(
 
 		if (cpufreq_frequency_table_target(
 			    pcpu->policy, pcpu->freq_table, loadadjfreq / tl,
-			    CPUFREQ_RELATION_C, &index))
+			    CPUFREQ_RELATION_L, &index))
 			break;
 		freq = pcpu->freq_table[index].frequency;
 
@@ -319,7 +319,7 @@ static unsigned int choose_freq(
 				 */
 				if (cpufreq_frequency_table_target(
 					    pcpu->policy, pcpu->freq_table,
-					    freqmin + 1, CPUFREQ_RELATION_C,
+					    freqmin + 1, CPUFREQ_RELATION_L,
 					    &index))
 					break;
 				freq = pcpu->freq_table[index].frequency;
@@ -453,7 +453,7 @@ static void cpufreq_barry_allen_timer(unsigned long data)
 	}
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
-					   new_freq, CPUFREQ_RELATION_C,
+					   new_freq, CPUFREQ_RELATION_L,
 					   &index))
 		goto rearm;
 
@@ -1352,7 +1352,7 @@ static int cpufreq_governor_barry_allen(struct cpufreq_policy *policy,
 		}
 
 		if (!have_governor_per_policy())
-			WARN_ON(cpufreq_get_global_kobject());
+
 
 		rc = sysfs_create_group(get_governor_parent_kobj(policy),
 				&barry_allen_attr_group);
@@ -1389,9 +1389,7 @@ static int cpufreq_governor_barry_allen(struct cpufreq_policy *policy,
 		idle_notifier_unregister(&cpufreq_barry_allen_idle_nb);
 		sysfs_remove_group(get_governor_parent_kobj(policy),
 				&barry_allen_attr_group);
-		if (!have_governor_per_policy())
-			cpufreq_put_global_kobject();
-		mutex_unlock(&gov_lock);
+		
 
 		break;
 
@@ -1401,7 +1399,7 @@ static int cpufreq_governor_barry_allen(struct cpufreq_policy *policy,
 					policy->max, CPUFREQ_RELATION_H);
 		else if (policy->min > policy->cur)
 			__cpufreq_driver_target(policy,
-					policy->min, CPUFREQ_RELATION_C);
+					policy->min, CPUFREQ_RELATION_L);
 		for_each_cpu(j, policy->cpus) {
 			pcpu = &per_cpu(cpuinfo, j);
 
