@@ -173,6 +173,12 @@ config CPU_FREQ_DEFAULT_GOV_LIONFISH
 	help
 	  Use the CPUFreq governor 'lionfish' as default.
 
+config CPU_FREQ_DEFAULT_GOV_XONDEMAND
+	bool "xondemand"
+	select CPU_FREQ_GOV_XONDEMAND
+	help
+	  Use the CPUFreq governor 'xondemand' as default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -355,6 +361,11 @@ config CPU_FREQ_GOV_LIONFISH
 	  module will be called cpufreq_lionfish.
 
 	  If in doubt, say N.
+config CPU_FREQ_GOV_XONDEMAND
+	tristate "'xondemand' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	  'xondemand' - A smarter version of "ondemand" governor.
 
 config CPU_BOOST
 	tristate "Event base short term CPU freq boost"
