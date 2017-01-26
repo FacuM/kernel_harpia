@@ -173,36 +173,6 @@ config CPU_FREQ_DEFAULT_GOV_LIONFISH
 	help
 	  Use the CPUFreq governor 'lionfish' as default.
 
-config CPU_FREQ_DEFAULT_GOV_XONDEMAND
-	bool "xondemand"
-	select CPU_FREQ_GOV_XONDEMAND
-	help
-	  Use the CPUFreq governor 'xondemand' as default.
-
-config CPU_FREQ_DEFAULT_GOV_ONDEMANDX
-	bool "ondemandx"
-	select CPU_FREQ_GOV_ONDEMANDX
-	help
-	  Use the CPUFreq governor 'ondemandx' as default.
-
-config CPU_FREQ_DEFAULT_GOV_SAKURACTIVE
-	bool "sakuractive"
-	select CPU_FREQ_GOV_SAKURACTIVE
-	help
-	  Use the CPUFreq governor 'sakuractive' as default.
-
-config CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND
-	bool "intellidemand"
-	select CPU_FREQ_GOV_INTELLIDEMAND
-	help
-	  Use the CPUFreq governor 'intellidemand' as default.
-
-config CPU_FREQ_DEFAULT_GOV_INTELLIACTIVE
-	bool "intelliactive"
-	select CPU_FREQ_GOV_INTELLIACTIVE
-	help
-	  Use the CPUFreq governor 'intelliactive' as default.
-
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -386,36 +356,6 @@ config CPU_FREQ_GOV_LIONFISH
 
 	  If in doubt, say N.
 	  
-config CPU_FREQ_GOV_XONDEMAND
-	tristate "'xondemand' cpufreq governor"
-	depends on CPU_FREQ
-	help
-	  'xondemand' - A smarter version of ondemand governor.
-	  
-config CPU_FREQ_GOV_ONDEMANDX
-	tristate "'ondemandx' cpufreq governor"
-	depends on CPU_FREQ
-	help
-	  'ondemandx' - A smarter version of ondemand governor.
-	  
-config CPU_FREQ_GOV_SAKURACTIVE
-	tristate "'sakuractive' cpufreq governor"
-	depends on CPU_FREQ
-	help
-	  'sakuractive' - A CPU governor.
-	  
-config CPU_FREQ_GOV_INTELLIDEMAND
-	tristate "'intellidemand' cpufreq governor"
-	depends on CPU_FREQ
-	help
-	  'intellidemand' - A smarter version of ondemand governor.
-	  
-config CPU_FREQ_GOV_INTELLIACTIVE
-	tristate "'intelliactive' cpufreq governor"
-	depends on CPU_FREQ
-	help
-	  'intelliactive' - A smarter version of interactive governor.
-
 config CPU_BOOST
 	tristate "Event base short term CPU freq boost"
 	depends on CPU_FREQ
