@@ -17063,61 +17063,344 @@ bool wlan_hdd_set_mdns_offload(hdd_adapter_t *hostapd_adapter)
  *
  * This function will process the starting of sap adapter.
  *
- * Return: void.
+ * Return - None
  */
-void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter)
+void hdd_mdns_fqdn_offload_done(void *padapter, VOS_STATUS status)
 {
-	hdd_ap_ctx_t *hdd_ap_ctx;
-	hdd_hostapd_state_t *hostapd_state;
-	VOS_STATUS vos_status;
-	hdd_context_t *hdd_ctx;
-	tsap_Config_t *pConfig;
+    hdd_adapter_t* adapter = (hdd_adapter_t*) padapter;
 
-	if (NULL == ap_adapter) {
-		VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-		FL("ap_adapter is NULL here"));
-		return;
-	}
+    ENTER();
 
-	hdd_ctx = WLAN_HDD_GET_CTX(ap_adapter);
-	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(ap_adapter);
-	hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(ap_adapter);
-	pConfig = &ap_adapter->sessionCtx.ap.sapConfig;
+    if (NULL == adapter)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               "%s: adapter is NULL",__func__);
+        return;
+    }
 
-	mutex_lock(&hdd_ctx->sap_lock);
-	if (test_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags))
-		goto end;
+    adapter->mdns_status.mdns_fqdn_status = status;
+    return;
+}
 
-	if (0 != wlan_hdd_cfg80211_update_apies(ap_adapter)) {
-		hddLog(LOGE, FL("SAP Not able to set AP IEs"));
-		goto end;
-	}
+/**
+ * hdd_mdns_resp_offload_done() - mdns resp offload response api
+ * @padapter: holds adapter
+ * @status: responce status
+ *
+ * Return - None
+ */
+void hdd_mdns_resp_offload_done(void *padapter, VOS_STATUS status)
+{
+    hdd_adapter_t* adapter = (hdd_adapter_t*) padapter;
 
-	vos_event_reset(&hostapd_state->vosEvent);
-	if (WLANSAP_StartBss(hdd_ctx->pvosContext, hdd_hostapd_SAPEventCB,
-			&hdd_ap_ctx->sapConfig, (v_PVOID_t)ap_adapter->dev)
-			!= VOS_STATUS_SUCCESS) {
-		goto end;
-	}
+    ENTER();
 
-	VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-		FL("Waiting for SAP to start"));
-	vos_status = vos_wait_single_event(&hostapd_state->vosEvent, 10000);
-	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
-		VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-			FL("SAP Start failed"));
-		goto end;
-	}
-	VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-		FL("SAP Start Success"));
-	set_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags);
+    if (NULL == adapter)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               "%s: adapter is NULL",__func__);
+        return;
+    }
 
-	wlan_hdd_incr_active_session(hdd_ctx, ap_adapter->device_mode);
-	hostapd_state->bCommit = TRUE;
+    adapter->mdns_status.mdns_resp_status = status;
+    return;
+}
 
-end:
-	mutex_unlock(&hdd_ctx->sap_lock);
-	return;
+/**
+ * wlan_hdd_mdns_process_response_dname() - Process mDNS domain name
+ * @response: Pointer to a struct hdd_mdns_resp_info
+ * @resp_info: Pointer to a struct tSirMDNSResponseInfo
+ *
+ * This function will pack the whole domain name without compression. It will
+ * add the leading len for each field and add zero length octet to terminate
+ * the domain name.
+ *
+ * Return: Return boolean. TRUE for success, FALSE for fail.
+ */
+static bool
+wlan_hdd_mdns_process_response_dname(struct hdd_mdns_resp_info *response,
+                     sir_mdns_resp_info resp_info)
+{
+    uint8_t  num;
+    uint16_t idx;
+    uint8_t len = 0;
+
+    if ((response == NULL) || (response->data == NULL) ||
+        (response->offset == NULL)) {
+        hddLog(LOGE, FL("Either data or offset in response is NULL!"));
+        return FALSE;
+    }
+
+    if ((resp_info == NULL) ||
+        (resp_info->resp_len >= MAX_MDNS_RESP_LEN)) {
+        hddLog(LOGE, FL("resp_len exceeds %d!"), MAX_MDNS_RESP_LEN);
+        return FALSE;
+    }
+
+    for (num = 0; num < response->num_entries; num++) {
+        response->offset[num] =
+                    resp_info->resp_len + MDNS_HEADER_LEN;
+        idx = num * MAX_LEN_DOMAINNAME_FIELD;
+        len = strlen((char *)&response->data[idx]);
+        if ((resp_info->resp_len + len + 1) >= MAX_MDNS_RESP_LEN) {
+            hddLog(LOGE, FL("resp_len exceeds %d!"),
+                MAX_MDNS_RESP_LEN);
+            return FALSE;
+                }
+        resp_info->resp_data[resp_info->resp_len] = len;
+        resp_info->resp_len++;
+        vos_mem_copy(&resp_info->resp_data[resp_info->resp_len],
+                &response->data[idx], len);
+        resp_info->resp_len += len;
+    }
+
+    /* The domain name terminates with the zero length octet */
+    if (num == response->num_entries) {
+        if (resp_info->resp_len >= MAX_MDNS_RESP_LEN) {
+            hddLog(LOGE, FL("resp_len exceeds %d!"),
+                MAX_MDNS_RESP_LEN);
+            return FALSE;
+        }
+        resp_info->resp_data[resp_info->resp_len] = 0;
+        resp_info->resp_len++;
+    }
+
+    return TRUE;
+}
+
+/**
+ * wlan_hdd_mdns_format_response_u16() - Form uint16_t response data
+ * @value: The uint16_t value is formed to the struct tSirMDNSResponseInfo
+ * @resp_info: Pointer to a struct tSirMDNSResponseInfo
+ *
+ * Return: None
+ */
+static void wlan_hdd_mdns_format_response_u16(uint16_t value,
+                          sir_mdns_resp_info resp_info)
+{
+    uint8_t val_u8;
+
+    if ((resp_info == NULL) || (resp_info->resp_data == NULL))
+        return;
+    val_u8 = (value & 0xff00) >> 8;
+    resp_info->resp_data[resp_info->resp_len++] = val_u8;
+    val_u8 = value & 0xff;
+    resp_info->resp_data[resp_info->resp_len++] = val_u8;
+}
+
+/**
+ * wlan_hdd_mdns_format_response_u32() - Form uint32_t response data
+ * @value: The uint32_t value is formed to the struct tSirMDNSResponseInfo
+ * @resp_info: Pointer to a struct tSirMDNSResponseInfo
+ *
+ * Return: None
+ */
+static void wlan_hdd_mdns_format_response_u32(uint32_t value,
+                          sir_mdns_resp_info resp_info)
+{
+    uint8_t val_u8;
+
+    if ((resp_info == NULL) || (resp_info->resp_data == NULL))
+        return;
+    val_u8 = (value & 0xff000000) >> 24;
+    resp_info->resp_data[resp_info->resp_len++] = val_u8;
+    val_u8 = (value & 0xff0000) >> 16;
+    resp_info->resp_data[resp_info->resp_len++] = val_u8;
+    val_u8 = (value & 0xff00) >> 8;
+    resp_info->resp_data[resp_info->resp_len++] = val_u8;
+    val_u8 = value & 0xff;
+    resp_info->resp_data[resp_info->resp_len++] = val_u8;
+}
+
+/**
+ * wlan_hdd_mdns_process_response_misc() - Process misc info in mDNS response
+ * @resp_type: Response type for mDNS
+ * @resp_info: Pointer to a struct tSirMDNSResponseInfo
+ *
+ * This function will pack the response type, class and TTL (Time To Live).
+ *
+ * Return: Return boolean. TRUE for success, FALSE for fail.
+ */
+static bool wlan_hdd_mdns_process_response_misc(uint16_t resp_type,
+                        sir_mdns_resp_info resp_info)
+{
+    uint16_t len;
+
+    if (resp_info == NULL) {
+        hddLog(LOGE, FL("resp_info is NULL!"));
+        return FALSE;
+    }
+
+    len = resp_info->resp_len + (2 * sizeof(uint16_t) + sizeof(uint32_t));
+    if (len >= MAX_MDNS_RESP_LEN) {
+        hddLog(LOGE, FL("resp_len exceeds %d!"), MAX_MDNS_RESP_LEN);
+        return FALSE;
+    }
+
+    /* Fill Type, Class, TTL */
+    wlan_hdd_mdns_format_response_u16(resp_type, resp_info);
+    wlan_hdd_mdns_format_response_u16(MDNS_CLASS, resp_info);
+    wlan_hdd_mdns_format_response_u32(MDNS_TTL, resp_info);
+
+    return TRUE;
+}
+
+/**
+ * wlan_hdd_mdns_compress_data() - Compress the domain name in mDNS response
+ * @resp_info: Pointer to a struct tSirMDNSResponseInfo
+ * @response_dst: The response which domain name is compressed.
+ * @response_src: The response which domain name is matched with response_dst.
+ *                Its offset is used for data compression.
+ * @num_matched: The number of matched entries between response_dst and
+ *               response_src
+ *
+ * This function will form the different fields of domain name in response_dst
+ * if any. Then use the offset of the matched domain name in response_src to
+ * compress the matched domain name.
+ *
+ * Return: Return boolean. TRUE for success, FALSE for fail.
+ */
+static bool
+wlan_hdd_mdns_compress_data(sir_mdns_resp_info resp_info,
+                struct hdd_mdns_resp_info *response_dst,
+                struct hdd_mdns_resp_info *response_src,
+                uint8_t num_matched)
+{
+    uint8_t  num, num_diff;
+    uint16_t value, idx;
+    uint8_t len = 0;
+
+    if ((response_src == NULL) || (response_dst == NULL) ||
+        (resp_info == NULL)) {
+        hddLog(LOGE, FL("response info is NULL!"));
+        return FALSE;
+    }
+
+    if (response_dst->num_entries < num_matched) {
+        hddLog(LOGE, FL("num_entries is less than num_matched!"));
+        return FALSE;
+    }
+
+    if (resp_info->resp_len >= MAX_MDNS_RESP_LEN) {
+        hddLog(LOGE, FL("resp_len exceeds %d!"), MAX_MDNS_RESP_LEN);
+        return FALSE;
+    }
+
+    num_diff = response_dst->num_entries - num_matched;
+    if ((num_diff > 0) && (response_dst->data == NULL)) {
+        hddLog(LOGE, FL("response_dst->data is NULL!"));
+        return FALSE;
+    }
+
+    /*
+    * Handle the unmatched string at the beginning
+    * Store the length of octets and the octets
+    */
+    for (num = 0; num < num_diff; num++) {
+        response_dst->offset[num] =
+            resp_info->resp_len + MDNS_HEADER_LEN;
+        idx = num * MAX_LEN_DOMAINNAME_FIELD;
+        len = strlen((char *)&response_dst->data[idx]);
+        if ((resp_info->resp_len + len + 1) >= MAX_MDNS_RESP_LEN) {
+            hddLog(LOGE, FL("resp_len exceeds %d!"),
+                MAX_MDNS_RESP_LEN);
+            return FALSE;
+        }
+        resp_info->resp_data[resp_info->resp_len] = len;
+        resp_info->resp_len++;
+        vos_mem_copy(&resp_info->resp_data[resp_info->resp_len],
+            &response_dst->data[idx], len);
+        resp_info->resp_len += len;
+    }
+    /*
+    * Handle the matched string from the end
+    * Just keep the offset and mask the leading two bit
+    */
+    if (response_src->num_entries >= num_matched) {
+        num_diff = response_src->num_entries - num_matched;
+        value = response_src->offset[num_diff];
+        if (value > 0) {
+            value |= 0xc000;
+            if ((resp_info->resp_len + sizeof(uint16_t)) >=
+                MAX_MDNS_RESP_LEN) {
+                hddLog(LOGE, FL("resp_len exceeds %d!"),
+                    MAX_MDNS_RESP_LEN);
+                return FALSE;
+            }
+            wlan_hdd_mdns_format_response_u16(value, resp_info);
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/**
+ * wlan_hdd_mdns_reset_response() - Reset the response info
+ * @response: The response which info is reset.
+ *
+ * Return: None
+ */
+static void wlan_hdd_mdns_reset_response(struct hdd_mdns_resp_info *response)
+{
+    if (response == NULL)
+        return;
+    response->num_entries = 0;
+    response->data = NULL;
+    response->offset = NULL;
+}
+
+/**
+ * wlan_hdd_mdns_init_response() - Initialize the response info
+ * @response: The response which info is initiatized.
+ * @resp_dname: The domain name string which might be tokenized.
+ *
+ * This function will allocate the memory for both response->data and
+ * response->offset. Besides, it will also tokenize the domain name to some
+ * entries and fill response->num_entries with the num of entries.
+ *
+ * Return: Return boolean. TRUE for success, FALSE for fail.
+ */
+static bool wlan_hdd_mdns_init_response(struct hdd_mdns_resp_info *response,
+                    uint8_t *resp_dname, char separator)
+{
+    uint16_t size;
+
+    if ((resp_dname == NULL) || (response == NULL)) {
+        hddLog(LOGE, FL("resp_dname or response is NULL!"));
+        return FALSE;
+    }
+
+    size = MAX_NUM_FIELD_DOMAINNAME * MAX_LEN_DOMAINNAME_FIELD;
+    response->data = vos_mem_malloc(size);
+    if (response->data) {
+        vos_mem_zero(response->data, size);
+        if (VOS_STATUS_SUCCESS !=
+            hdd_string_to_string_array((char *)resp_dname,
+                        response->data,
+                        separator,
+                        &response->num_entries,
+                        MAX_NUM_FIELD_DOMAINNAME,
+                        MAX_LEN_DOMAINNAME_FIELD)) {
+            hddLog(LOGE, FL("hdd_string_to_string_array fail!"));
+            goto err_init_resp;
+        }
+
+        if ((response->num_entries > 0) &&
+            (strlen((char *)&response->data[0]) > 0)) {
+            size = sizeof(uint16_t) * response->num_entries;
+            response->offset = vos_mem_malloc(size);
+            if (response->offset) {
+                vos_mem_zero(response->offset, size);
+                return TRUE;
+            }
+        }
+    }
+
+err_init_resp:
+    if (response->data)
+        vos_mem_free(response->data);
+    wlan_hdd_mdns_reset_response(response);
+    return FALSE;
 }
 
 #ifdef WLAN_FEATURE_TSF
