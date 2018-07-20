@@ -10,7 +10,7 @@ FINAL_ZIP="$KERNEL_NAME""$DEVICE""$DATE""$TYPE""$VER".zip
 
 export ARCH=arm
 export KBUILD_BUILD_USER="Aki"
-export KBUILD_BUILD_HOST="A_DEAD_PLANET"
+export KBUILD_BUILD_HOST="SEND_NUDES__PLEASE"
 export CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-eabi-
 export USE_CCACHE=1
 
@@ -19,6 +19,14 @@ then
 rm arch/arm/boot/zImage #Just to make sure it doesn't make flashable zip with previous zImage
 fi;
 
+if [ -z "$1" ]
+then
+ t=$(nproc --all)
+else
+ t=$1
+fi
+
+echo "Will now run using $t threads."
 echo "Making kernel binary"
 make harpia_defconfig
 make -j$( nproc --all ) zImage
