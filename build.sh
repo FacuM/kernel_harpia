@@ -1,11 +1,9 @@
 KERNEL_DIR=$PWD
-Anykernel_DIR=$KERNEL_DIR/Anykernel2/harpia
 TOOLCHAINDIR=$(pwd)/toolchain/linaro-7.2
 DATE=$(date +"%d%m%Y")
 KERNEL_NAME="BLEEDING_EDGE-Kernel"
 
 export ARCH=arm
-export KBUILD_BUILD_USER="$3"
 # export KBUILD_BUILD_HOST="SEND_NUDES__PLEASE"
 export CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-eabi-
 export USE_CCACHE=1
@@ -20,10 +18,13 @@ then
  printf "\nUsage: \n\n\tbash build.sh [thread_amount] device_codename maintainer_username\n\n\tNOTE: '[thread_amount]' can be an integer or 'auto'.\n\n"
  exit 1
 fi
-DEVICE="-$2-"
+export DEVICE="-$2-"
+export KBUILD_BUILD_USER="$3"
+Anykernel_DIR=$KERNEL_DIR/Anykernel2/$DEVICE
+mkdir -p $Anykernel_DIR
 VER="-v70"
 TYPE="-OREO"
-FINAL_ZIP="$KERNEL_NAME""$DEVICE""$DATE""$TYPE""$VER".zip
+export FINAL_ZIP="$KERNEL_NAME""$DEVICE""$DATE""$TYPE""$VER".zip
 if [ "$1" == 'auto' ]
 then
  t=$(nproc --all)
@@ -57,7 +58,7 @@ git log --graph --pretty=format:'%s' --abbrev-commit -n 200  > changelog.txt
 echo "Changelog generated"
 
 if [ -e $Anykernel_DIR/*.zip ];
-then 
+then
 rm *.zip
 fi;
 
