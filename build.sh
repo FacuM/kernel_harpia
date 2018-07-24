@@ -34,7 +34,12 @@ fi
 printf "\nTHREADS: $t\nDEVICE: $2\nMAINTAINER: $3\n\n"
 echo "Making kernel binary"
 make $2_defconfig
-make -j$( nproc --all ) zImage
+make -j$t zImage
+make -j$t modules_install INSTALL_MOD_PATH=modules INSTALL_MOD_STRIP=1
+mkdir -p "$Anykernel_DIR/system/lib/modules/pronto"
+find modules/ -name '*.ko' -type f -exec cp '{}' "$Anykernel_DIR/system/lib/modules/" \;
+mv "$Anykernel_DIR/system/lib/modules/wlan.ko" "$Anykernel_DIR/system/lib/modules/pronto/pronto_wlan.ko"
+
 
 if [ -e  arch/arm/boot/zImage ];
 then
