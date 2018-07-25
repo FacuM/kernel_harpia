@@ -1,3 +1,9 @@
+if [ -z $2 ] || [ -z $3 ]
+then
+ printf "\nUsage: \n\n\tbash build.sh [thread_amount] device_codename maintainer_username\n\n\tNOTE: '[thread_amount]' can be an integer or 'auto'.\n\n"
+ exit 1
+fi
+
 KERNEL_DIR=$PWD
 TOOLCHAINDIR=$(pwd)/toolchain/linaro-7.2
 DATE=$(date +"%d%m%Y")
@@ -13,11 +19,6 @@ then
 rm arch/arm/boot/zImage #Just to make sure it doesn't make flashable zip with previous zImage
 fi;
 
-if [ -z $2 ] || [ -z $3 ]
-then
- printf "\nUsage: \n\n\tbash build.sh [thread_amount] device_codename maintainer_username\n\n\tNOTE: '[thread_amount]' can be an integer or 'auto'.\n\n"
- exit 1
-fi
 export DEVICE="-$2-"
 export KBUILD_BUILD_USER="$3"
 Anykernel_DIR=$KERNEL_DIR/Anykernel2/$DEVICE
