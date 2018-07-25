@@ -33,18 +33,31 @@ else
  t=$1
 fi
 printf "\nTHREADS: $t\nDEVICE: $2\nMAINTAINER: $3\n\n"
-echo "Making kernel binary"
+echo "=> Making kernel binary..."
 make $2_defconfig
 make -j$t zImage
-make -j$t modules
-make -j$t modules_install INSTALL_MOD_PATH=modules INSTALL_MOD_STRIP=1
-mkdir -p "$Anykernel_DIR/system/lib/modules/pronto"
-find modules/ -name '*.ko' -type f -exec cp '{}' "$Anykernel_DIR/system/lib/modules/" \;
-mv "$Anykernel_DIR/system/lib/modules/wlan.ko" "$Anykernel_DIR/system/lib/modules/pronto/pronto_wlan.ko"
-
-
-if [ -e  arch/arm/boot/zImage ];
+if [ $? -ne 0 ]
 then
+ echo "Kernel compilation failed, can't continue."
+ exit 1
+fi
+echo "=> Making modules..."
+make -j$t modules
+if [ $? -ne 0 ]
+then
+ echo "Module compilation failed, can't continue."
+ exit 1
+fi
+make -j$t modules_install INSTALL_MOD_PATH=modules INSTALL_MOD_STRIP=1
+if [ $? -ne 0 ]
+then
+ echo "Module installation failed, can't continue."
+ exit 1
+fi
+mkdir -p "$Anykernel_DIR/modules/pronto"
+find modules/ -name '*.ko' -type f -exec cp '{}' "$Anykernel_DIR/modules/" \;
+cp "$Anykernel_DIR/modules/wlan.ko" "$Anykernel_DIR/modules/pronto/pronto_wlan.ko"
+
 echo "Kernel compilation completed"
 
 cp  $KERNEL_DIR/arch/arm/boot/zImage $Anykernel_DIR
@@ -74,8 +87,3 @@ zip -r9 $FINAL_ZIP * -x *.zip $FINAL_ZIP > /dev/null
 echo "Flashable zip Created"
 echo "Flashable zip is stored in $Anykernel_DIR folder with name $FINAL_ZIP"
 exit 0
-else
-echo "Kernel not compiled,fix errors and compile again"
-exit 1
-fi;
-
