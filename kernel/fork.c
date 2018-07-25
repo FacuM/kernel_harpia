@@ -246,6 +246,17 @@ int task_free_unregister(struct notifier_block *n)
 }
 EXPORT_SYMBOL(task_free_unregister);
 
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+static void cpufreq_stats_tsk_free(struct task_struct *tsk)
+{
+	int cpu;
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		kfree(tsk->cpufreq_stats[cpu].time_in_state);
+		kfree(tsk->cpufreq_stats[cpu].cumulative_time_in_state);
+	}
+}
+#endif
+
 void __put_task_struct(struct task_struct *tsk)
 {
 	WARN_ON(!tsk->exit_state);
@@ -255,6 +266,9 @@ void __put_task_struct(struct task_struct *tsk)
 	security_task_free(tsk);
 	exit_creds(tsk);
 	delayacct_tsk_free(tsk);
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+	cpufreq_stats_tsk_free(tsk);
+#endif
 	put_signal_struct(tsk->signal);
 
 	atomic_notifier_call_chain(&task_free_notifier, 0, tsk);
@@ -801,14 +815,12 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 	deactivate_mm(tsk, mm);
 
 	/*
-	 * If we're exiting normally, clear a user-space tid field if
-	 * requested.  We leave this alone when dying by signal, to leave
-	 * the value intact in a core dump, and to save the unnecessary
-	 * trouble, say, a killed vfork parent shouldn't touch this mm.
-	 * Userland only wants this done for a sys_exit.
+	 * Signal userspace if we're not exiting with a core dump
+	 * because we want to leave the value intact for debugging
+	 * purposes.
 	 */
 	if (tsk->clear_child_tid) {
-		if (!(tsk->flags & PF_SIGNALED) &&
+		if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
 		    atomic_read(&mm->mm_users) > 1) {
 			/*
 			 * We don't check the error code - if userspace has
@@ -1189,6 +1201,35 @@ static void posix_cpu_timers_init(struct task_struct *tsk)
 	INIT_LIST_HEAD(&tsk->cpu_timers[2]);
 }
 
+
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+/*
+ * Initialize cpufreq_stats for a given task.
+ */
+
+static void cpufreq_stats_tsk_init(struct task_struct *tsk)
+{
+	int cpu, i, max_state = 0;
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		tsk->cpufreq_stats[cpu].max_state = 0;
+		tsk->cpufreq_stats[cpu].time_in_state = NULL;
+		tsk->cpufreq_stats[cpu].cumulative_time_in_state = NULL;
+		max_state = cpufreq_stats_get_max_state(cpu);
+		tsk->cpufreq_stats[cpu].max_state = max_state;
+		if (max_state > 0) {
+			tsk->cpufreq_stats[cpu].time_in_state =
+				kzalloc((max_state * sizeof(u64)), GFP_KERNEL);
+			tsk->cpufreq_stats[cpu].cumulative_time_in_state =
+				kzalloc((max_state * sizeof(u64)), GFP_KERNEL);
+			for (i = 0; i < max_state; i++) {
+				tsk->cpufreq_stats[cpu].time_in_state[i] = 0;
+				tsk->cpufreq_stats[cpu].cumulative_time_in_state[i]
+					= 0;
+			}
+		}
+	}
+}
+#endif
 /*
  * This creates a new process as a copy of the old one,
  * but does not actually start it yet.
@@ -1427,7 +1468,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->tgid = p->pid;
 	if (clone_flags & CLONE_THREAD)
 		p->tgid = current->tgid;
-
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+	cpufreq_stats_tsk_init(p);
+#endif
 	p->set_child_tid = (clone_flags & CLONE_CHILD_SETTID) ? child_tidptr : NULL;
 	/*
 	 * Clear TID on mm_release()?
@@ -1602,6 +1645,9 @@ bad_fork_cleanup_cgroup:
 		threadgroup_change_end(current);
 	cgroup_exit(p, 0);
 	delayacct_tsk_free(p);
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+	cpufreq_stats_tsk_free(p);
+#endif
 	module_put(task_thread_info(p)->exec_domain->module);
 bad_fork_cleanup_count:
 	atomic_dec(&p->cred->user->processes);
@@ -1829,13 +1875,21 @@ static int check_unshare_flags(unsigned long unshare_flags)
 				CLONE_NEWUSER|CLONE_NEWPID))
 		return -EINVAL;
 	/*
-	 * Not implemented, but pretend it works if there is nothing to
-	 * unshare. Note that unsharing CLONE_THREAD or CLONE_SIGHAND
-	 * needs to unshare vm.
+	 * Not implemented, but pretend it works if there is nothing
+	 * to unshare.  Note that unsharing the address space or the
+	 * signal handlers also need to unshare the signal queues (aka
+	 * CLONE_THREAD).
 	 */
 	if (unshare_flags & (CLONE_THREAD | CLONE_SIGHAND | CLONE_VM)) {
-		/* FIXME: get_task_mm() increments ->mm_users */
-		if (atomic_read(&current->mm->mm_users) > 1)
+		if (!thread_group_empty(current))
+			return -EINVAL;
+	}
+	if (unshare_flags & (CLONE_SIGHAND | CLONE_VM)) {
+		if (atomic_read(&current->sighand->count) > 1)
+			return -EINVAL;
+	}
+	if (unshare_flags & CLONE_VM) {
+		if (!current_is_single_threaded())
 			return -EINVAL;
 	}
 
@@ -1909,15 +1963,15 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 	if (unshare_flags & CLONE_NEWPID)
 		unshare_flags |= CLONE_THREAD;
 	/*
-	 * If unsharing a thread from a thread group, must also unshare vm.
-	 */
-	if (unshare_flags & CLONE_THREAD)
-		unshare_flags |= CLONE_VM;
-	/*
 	 * If unsharing vm, must also unshare signal handlers.
 	 */
 	if (unshare_flags & CLONE_VM)
 		unshare_flags |= CLONE_SIGHAND;
+	/*
+	 * If unsharing a signal handlers, must also unshare the signal queues.
+	 */
+	if (unshare_flags & CLONE_SIGHAND)
+		unshare_flags |= CLONE_THREAD;
 	/*
 	 * If unsharing namespace, must also unshare filesystem information.
 	 */

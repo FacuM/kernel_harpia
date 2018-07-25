@@ -52,6 +52,7 @@ struct sched_param {
 #include <linux/llist.h>
 #include <linux/uidgid.h>
 #include <linux/gfp.h>
+#include <linux/cpufreq.h>
 
 #include <asm/processor.h>
 
@@ -1168,6 +1169,27 @@ enum perf_event_task_context {
 	perf_nr_task_contexts,
 };
 
+
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+struct task_cpufreq_stats {
+	int max_state;
+	/*
+	 * a table holding the current time
+	 * (in jiffies) on this CPU at
+	 * frequency freq_table[i]. freq_table can be
+         * obtained from drivers/cpufreq/freq_table.h.
+	 */
+	u64 *time_in_state;
+	/*
+	 * a table holding the cumulative time
+         * (in jiffies) spent by this task on this CPU
+	 * at frequency freq_table[i]. freq_table can be
+         * obtained from drivers/cpufreq/freq_table.h.
+	 */
+	u64 *cumulative_time_in_state;
+};
+#endif
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
@@ -1546,6 +1568,12 @@ struct task_struct {
 		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
 	} memcg_batch;
 	unsigned int memcg_kmem_skip_account;
+	struct memcg_oom_info {
+		struct mem_cgroup *memcg;
+		gfp_t gfp_mask;
+		int order;
+		unsigned int may_oom:1;
+	} memcg_oom;
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	atomic_t ptrace_bp_refcnt;
@@ -1556,6 +1584,9 @@ struct task_struct {
 #if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
 	unsigned int	sequential_io;
 	unsigned int	sequential_io_avg;
+#endif
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+	struct task_cpufreq_stats cpufreq_stats[NR_CPUS];
 #endif
 };
 
@@ -1592,6 +1623,19 @@ static inline void add_2_adj_tree(struct task_struct *task) { }
 static inline void delete_from_adj_tree(struct task_struct *task) { }
 #endif
 
+#ifdef CONFIG_TASK_CPUFREQ_STATS
+static inline void task_update_time_in_state(struct task_struct *task, int cpu)
+{
+	update_time_in_state(task, cpu);
+}
+
+static inline void task_update_cumulative_time_in_state(struct task_struct *task,
+						 struct task_struct *parent,
+						 int cpu)
+{
+	update_cumulative_time_in_state(task, parent, cpu);
+}
+#endif
 /*
  * Without tasklist or rcu lock it is not safe to dereference
  * the result of task_pgrp/task_session even if task == current,
@@ -1834,11 +1878,13 @@ static inline void sched_set_io_is_busy(int val) {};
 #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
 #define used_math() tsk_used_math(current)
 
-/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags */
+/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags
+ * __GFP_FS is also cleared as it implies __GFP_IO.
+ */
 static inline gfp_t memalloc_noio_flags(gfp_t flags)
 {
 	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
-		flags &= ~__GFP_IO;
+		flags &= ~(__GFP_IO | __GFP_FS);
 	return flags;
 }
 
@@ -2402,15 +2448,15 @@ static inline bool thread_group_leader(struct task_struct *p)
  * all we care about is that we have a task with the appropriate
  * pid, we don't actually care if we have the right task.
  */
-static inline int has_group_leader_pid(struct task_struct *p)
+static inline bool has_group_leader_pid(struct task_struct *p)
 {
-	return p->pid == p->tgid;
+	return task_pid(p) == p->signal->leader_pid;
 }
 
 static inline
-int same_thread_group(struct task_struct *p1, struct task_struct *p2)
+bool same_thread_group(struct task_struct *p1, struct task_struct *p2)
 {
-	return p1->tgid == p2->tgid;
+	return p1->signal == p2->signal;
 }
 
 static inline struct task_struct *next_thread(const struct task_struct *p)
