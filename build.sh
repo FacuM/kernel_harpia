@@ -19,13 +19,13 @@ then
 rm arch/arm/boot/zImage #Just to make sure it doesn't make flashable zip with previous zImage
 fi;
 
-export DEVICE="-$2-"
+export DEVICE="$2"
 export KBUILD_BUILD_USER="$3"
 Anykernel_DIR=$KERNEL_DIR/Anykernel2/$DEVICE
 mkdir -p $Anykernel_DIR
 VER="-v70"
 TYPE="-N"
-export FINAL_ZIP="$KERNEL_NAME""$DEVICE""$DATE""$TYPE""$VER".zip
+export FINAL_ZIP="$KERNEL_NAME"-"$DEVICE"-"$DATE""$TYPE""$VER".zip
 if [ "$1" == 'auto' ]
 then
  t=$(nproc --all)
