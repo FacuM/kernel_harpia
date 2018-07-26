@@ -54,9 +54,9 @@ then
  echo "Module installation failed, can't continue."
  exit 1
 fi
-mkdir -p "$Anykernel_DIR/modules/pronto"
-find modules/ -name '*.ko' -type f -exec cp '{}' "$Anykernel_DIR/modules/" \;
-cp "$Anykernel_DIR/modules/wlan.ko" "$Anykernel_DIR/modules/pronto/pronto_wlan.ko"
+mkdir -p "$Anykernel_DIR/modules/system/lib/modules/pronto"
+find modules/ -name '*.ko' -type f -exec cp '{}' "$Anykernel_DIR/modules/system/lib/modules/" \;
+cp "$Anykernel_DIR/modules/system/lib/modules/wlan.ko" "$Anykernel_DIR/modules/system/lib/modules/pronto/pronto_wlan.ko"
 
 echo "Kernel compilation completed"
 
