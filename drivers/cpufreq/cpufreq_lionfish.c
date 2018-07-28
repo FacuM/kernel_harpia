@@ -348,7 +348,7 @@ static void lf_check_cpu(struct lf_gdbs_data *dbs_data, int cpu)
 static void lf_dbs_timer(struct work_struct *work)
 {
 	struct lf_cpu_dbs_info_s *dbs_info = container_of(work,
-			struct lf_cpu_dbs_info_s, cdbs.work.work);
+			struct lf_cpu_dbs_info_s, cdbs.work.dwork);
 	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
 	struct lf_cpu_dbs_info_s *core_dbs_info = &per_cpu(lf_cpu_dbs_info,
 			cpu);
