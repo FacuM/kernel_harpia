@@ -181,7 +181,8 @@ config CPU_FREQ_DEFAULT_GOV_BARRY_ALLEN
 
 config CPU_FREQ_DEFAULT_GOV_DARKNESS
 	bool "darkness"
-	select CPU_FREQ_GOV_DARKNESS	
+	select CPU_FREQ_GOV_DARKNESS
+	help
 	  Use the CPUFreq governor 'impulse' as default
 
 config CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND
