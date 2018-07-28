@@ -228,10 +228,6 @@ config CPU_FREQ_DEFAULT_GOV_YANKACTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'yankactive' governor for latency-sensitive workloads.
 
-config CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
-	bool "blu_active"
-	select CPU_FREQ_GOV_BLU_ACTIVE
-
 config CPU_FREQ_DEFAULT_GOV_INTERACTIVE_PRO
 	bool "interactive_pro"
 	select CPU_FREQ_GOV_INTERACTIVE_PRO
@@ -604,9 +600,6 @@ config CPU_FREQ_GOV_LIONFISH
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_BLU_ACTIVE
-	tristate "'blu_active' cpufreq policy governor"
-
 config CPU_FREQ_GOV_SMARTMAX_EPS
         tristate "'smartmax EPS' cpufreq policy governor"
         select CPU_FREQ_TABLE
@@ -674,7 +667,7 @@ config CPU_FREQ_GOV_WHEATLEY
 config CPU_FREQ_GOV_HYPER
 	tristate "'hyper' cpufreq governor"
 	depends on CPU_FREQ
-	---help---
+	help
 	  'hyper' - A tweaked "ondemand" based smart and smooth optimized governor!
 
 config CPU_FREQ_GOV_BLU_ACTIVE
