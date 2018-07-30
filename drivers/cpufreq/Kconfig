@@ -688,12 +688,6 @@ config CPU_FREQ_GOV_BLU_ACTIVE
 config CPU_FREQ_GOV_SMARTMAX
 	tristate "'smartmax' cpufreq policy governor"
 
-config CPU_FREQ_GOV_HOTPLUG
-	tristate "'hotplug' cpufreq governor"
-	select CPU_FREQ_TABLE
-	help
-	  'smartmax' combines ondemand and smartass2
-
 config CPU_FREQ_GOV_ALUCARD
 	tristate "'alucard' cpufreq governor"
 	depends on CPU_FREQ
