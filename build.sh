@@ -5,13 +5,13 @@ then
 fi
 
 KERNEL_DIR=$PWD
-TOOLCHAINDIR=$(pwd)/toolchain/linaro-7.2
+TOOLCHAINDIR=$(pwd)/toolchain/arm-linux-gnueabi
 DATE=$(date +"%d%m%Y")
 KERNEL_NAME="BLEEDING_EDGE-Kernel"
 
 export ARCH=arm
 # export KBUILD_BUILD_HOST="SEND_NUDES__PLEASE"
-export CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-eabi-
+export CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-linux-gnueabi-
 export USE_CCACHE=1
 
 if [ -e  arch/arm/boot/zImage ];
