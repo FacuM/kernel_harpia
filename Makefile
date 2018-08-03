@@ -596,6 +596,17 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning,unused-const-variable,)
 # Disable format-truncation warnings
 KBUILD_CFLAGS   += $(call cc-disable-warning,format-truncation,)
 
+# This warning generated too much noise in a regular build.
+# Use make W=1 to enable this warning (see scripts/Makefile.build)
+KBUILD_CFLAGS   += $(call cc-disable-warning, stringop-overflow)
+KBUILD_CFLAGS   += $(call cc-disable-warning, stringop-truncation)
+KBUILD_CFLAGS   += $(call cc-disable-warning, sizeof-pointer-memaccess)
+KBUILD_CFLAGS   += $(call cc-disable-warning, packed-not-aligned)
+KBUILD_CFLAGS	+= $(call cc-disable-warning, unused-function)
+KBUILD_CFLAGS	+= $(call cc-disable-warning, unused-value)
+KBUILD_CFLAGS	+= $(call cc-disable-warning, unused-variable)
+KBUILD_CFLAGS	+= $(call cc-disable-warning, incompatible-pointer-types)
+
 # Needed to unbreak GCC 7.x and above
 KBUILD_CFLAGS   += $(call cc-option,-fno-store-merging,)
 
