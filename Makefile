@@ -606,6 +606,7 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, unused-function)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, unused-value)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, unused-variable)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, incompatible-pointer-types)
+KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
 
 # Needed to unbreak GCC 7.x and above
 KBUILD_CFLAGS   += $(call cc-option,-fno-store-merging,)
