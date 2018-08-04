@@ -10,11 +10,13 @@ DATE=$(date +"%d%m%Y")
 KERNEL_NAME="BLEEDING_EDGE-Kernel"
 
 # Merge the toolchain parts, unpack it and remove compressed files.
+
+echo "=> Preparing toolchain"
 cd $TOOLCHAINDIR
-cat arm-linux-gmueabi.tar.xz.part* > arm-linux-gnueabi.tar.xz
-rm  arm-linux-gnueabi.tar.xz.part*
+echo "- Merging files"
+cat arm-linux-gnueabi.tar.xz.part* > arm-linux-gnueabi.tar.xz
+echo "- Unpacking files"
 tar xf 'arm-linux-gnueabi.tar.xz'
-rm  arm-linux-gnueabi.tar.xz
 if [ $? -ne 0 ]
 then
  echo "Unable to prepare the toolchain, please check the errors above."
