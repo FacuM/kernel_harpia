@@ -47,7 +47,8 @@ then
 else
  t=$1
 fi
-printf "\nTHREADS: $t\nDEVICE: $2\nMAINTAINER: $3\n\n"
+GCCV=$("$CROSS_COMPILE"gcc -v 2>&1 | tail -1 | cut -d ' ' -f 3)
+printf "\nTHREADS: $t\nDEVICE: $2\nMAINTAINER: $3\nGCC VERSION: $GCCV\n\n"
 echo "=> Making kernel binary..."
 make $2_defconfig
 make -j$t zImage
