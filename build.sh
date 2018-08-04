@@ -9,6 +9,19 @@ TOOLCHAINDIR=$(pwd)/toolchain/arm-linux-gnueabi
 DATE=$(date +"%d%m%Y")
 KERNEL_NAME="BLEEDING_EDGE-Kernel"
 
+# Merge the toolchain parts, unpack it and remove compressed files.
+cd $TOOLCHAINDIR
+cat arm-linux-gmueabi.tar.xz.part* > arm-linux-gnueabi.tar.xz
+rm  arm-linux-gnueabi.tar.xz.part*
+tar xf 'arm-linux-gnueabi.tar.xz'
+rm  arm-linux-gnueabi.tar.xz
+if [ $? -ne 0 ]
+then
+ echo "Unable to prepare the toolchain, please check the errors above."
+ exit 1
+fi
+cd $KERNEL_DIR
+
 export ARCH=arm
 # export KBUILD_BUILD_HOST="SEND_NUDES__PLEASE"
 export CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-linux-gnueabi-
