@@ -4714,8 +4714,10 @@ int qce_ablk_cipher_req(void *handle, struct qce_req *c_req)
 	_qce_set_flag(&pce_dev->ce_sps.out_transfer, SPS_IOVEC_FLAG_INT);
 	rc = _qce_sps_transfer(pce_dev);
 	if (rc)
+	{
 		goto bad;
 		return 0;
+	}
 bad:
 	if (areq->src != areq->dst) {
 		if (pce_dev->dst_nents) {
@@ -4777,7 +4779,9 @@ int qce_process_sha_req(void *handle, struct qce_sha_req *sreq)
 					&pce_dev->ce_sps.in_transfer);
 	if (_qce_sps_add_sg_data(pce_dev, areq->src, areq->nbytes,
 						 &pce_dev->ce_sps.in_transfer))
+	{
 		goto bad;
+	}
 
 	/* always ensure there is input data. ZLT does not work for bam-ndp */
 	if (!areq->nbytes)
@@ -4799,8 +4803,10 @@ int qce_process_sha_req(void *handle, struct qce_sha_req *sreq)
 	_qce_set_flag(&pce_dev->ce_sps.out_transfer, SPS_IOVEC_FLAG_INT);
 	rc = _qce_sps_transfer(pce_dev);
 	if (rc)
+	{
 		goto bad;
 		return 0;
+	}
 bad:
 	if (pce_dev->src_nents) {
 		qce_dma_unmap_sg(pce_dev->pdev, sreq->src,
