@@ -39,7 +39,7 @@ export KBUILD_BUILD_USER="$3"
 Anykernel_DIR=$KERNEL_DIR/Anykernel2/$DEVICE
 mkdir -p $Anykernel_DIR
 VER="-v70"
-TYPE="-N"
+TYPE="-O"
 export FINAL_ZIP="$KERNEL_NAME"-"$DEVICE"-"$DATE""$TYPE""$VER".zip
 if [ "$1" == 'auto' ]
 then
