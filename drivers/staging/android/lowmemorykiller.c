@@ -288,9 +288,10 @@ void tune_lmk_zone_param(struct zonelist *zonelist, int classzone_idx,
 					za->free -= lowmem_reserve;
 				}
 			} else {
-				if (other_free)
+				if (other_free) {
 					*other_free -= za->free;
 					za->free = 0;
+				}
 			}
 		}
 	}
