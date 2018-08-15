@@ -32,7 +32,7 @@
 #define DEF_VOTE_THRESHOLD		3
 
 #define N_BIG_CPUS			4
-#define N_LITTLE_CPUS			0
+#define N_LITTLE_CPUS			4
 
 static DEFINE_MUTEX(cluster_plug_parameters_mutex);
 static struct delayed_work cluster_plug_work;
@@ -55,11 +55,11 @@ module_param(vote_threshold_up, uint, 0664);
 
 static ktime_t last_action;
 
-static bool active = true;
+static bool active = false;
 static bool big_cluster_enabled = true;
-static bool little_cluster_enabled = false;
+static bool little_cluster_enabled = true;
 static bool low_power_mode = false;
-static bool online_all = true;
+static bool online_all = false;
 
 static unsigned int vote_up = 0;
 static unsigned int vote_down = 0;
