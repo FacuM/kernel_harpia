@@ -17,7 +17,6 @@
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
@@ -34,7 +33,6 @@
 #define N_BIG_CPUS			4
 #define N_LITTLE_CPUS			4
 
-static DEFINE_MUTEX(cluster_plug_parameters_mutex);
 static struct delayed_work cluster_plug_work;
 static struct workqueue_struct *clusterplug_wq;
 
@@ -289,15 +287,8 @@ static int __ref active_store(const char *buf,
 
 	ret = kstrtoint(buf, 0, &value);
 	if (ret == 0) {
-		mutex_lock(&cluster_plug_parameters_mutex);
-
-		cancel_delayed_work(&cluster_plug_work);
-		flush_workqueue(clusterplug_wq);
-
 		active = (value != 0);
 		queue_clusterplug_work(1);
-
-		mutex_unlock(&cluster_plug_parameters_mutex);
 	}
 
 	return ret;
@@ -323,15 +314,8 @@ static int __ref low_power_mode_store(const char *buf,
 
 	ret = kstrtoint(buf, 0, &value);
 	if (ret == 0) {
-		mutex_lock(&cluster_plug_parameters_mutex);
-
-		cancel_delayed_work(&cluster_plug_work);
-		flush_workqueue(clusterplug_wq);
-
 		low_power_mode = (value != 0);
 		queue_clusterplug_work(1);
-
-		mutex_unlock(&cluster_plug_parameters_mutex);
 	}
 
 	return ret;
