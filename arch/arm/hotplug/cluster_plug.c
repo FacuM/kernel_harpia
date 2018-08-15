@@ -17,6 +17,7 @@
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
@@ -32,6 +33,7 @@
 #define DEF_LOAD_THRESH			(70)
 #define DEF_SAMPLING_MS			(200)
 
+static DEFINE_MUTEX(cluster_plug_mutex);
 static struct delayed_work cluster_plug_work;
 static struct workqueue_struct *clusterplug_wq;
 
