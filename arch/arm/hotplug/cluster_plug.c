@@ -47,11 +47,8 @@ module_param(load_threshold_up, uint, 0664);
 static unsigned int sampling_time = DEF_SAMPLING_MS;
 module_param(sampling_time, uint, 0664);
 
-static unsigned int vote_threshold_down = DEF_VOTE_THRESHOLD;
-module_param(vote_threshold_down, uint, 0664);
-
-static unsigned int vote_threshold_up = DEF_VOTE_THRESHOLD;
-module_param(vote_threshold_up, uint, 0664);
+static unsigned int vote_threshold = DEF_VOTE_THRESHOLD;
+module_param(vote_threshold, uint, 0664);
 
 static ktime_t last_action;
 
@@ -246,13 +243,13 @@ static void cluster_plug_perform(void)
 			vote_down--;
 	}
 
-	if (vote_up > vote_threshold_up) {
+	if (vote_up > vote_threshold) {
 		enable_little_cluster();
-		vote_up = vote_threshold_up;
+		vote_up = vote_threshold;
 		vote_down = 0;
-	} else if (!vote_up && vote_down > vote_threshold_down) {
+	} else if (!vote_up && vote_down > vote_threshold) {
 		disable_little_cluster();
-		vote_down = vote_threshold_down;
+		vote_down = vote_threshold;
 	}
 
 	last_action = now;
