@@ -1,39 +1,68 @@
+#!/bin/bash
 if [ -z $2 ] || [ -z $3 ]
 then
  printf "\nUsage: \n\n\tbash build.sh [thread_amount] device_codename maintainer_username\n\n\tNOTE: '[thread_amount]' can be an integer or 'auto'.\n\n"
  exit 1
 fi
 
+# Functions
+
+function clrln
+{
+  i=0
+  COLUMNS=$(tput cols)
+  printf '\r'
+  while [ $i -lt $COLUMNS ]
+  do
+    printf ' '
+    i=$(($i + 1))
+  done
+  printf '\r'
+}
+
+function fail
+{
+  clrln
+  printf "\n\n\e[91m%s""$1""\n\n\e[91m\e[0m\n"
+  exit 1
+}
+
+function ok
+{
+  clrln
+  printf "\n\n\e[92m\e[1m === ""$1"" === \e[0m\n"
+}
+
 KERNEL_DIR=$PWD
 TOOLCHAINDIR=$(pwd)/toolchain/arm-linux-gnueabi
 DATE=$(date +"%d%m%Y")
 KERNEL_NAME="BLEEDING_EDGE-Kernel"
 
+# Warn about cleaning the environment
+
+if [ "$4" == clean ]
+then
+ printf "\n\e[91m\e[1mWARNING: \e[0m\e[91myour build environment will be cleaned after getting the toolchain ready, this is your last opportunity to hit CTRL+C if you don't want to.\e[0m\n\n"
+fi
+
 # Merge the toolchain parts, unpack it and remove compressed files.
 
-echo "=> Preparing toolchain"
+printf '\n\e[93m=> Preparing toolchain\e[0m\n'
 cd $TOOLCHAINDIR
-echo "- Merging files"
+printf '\n\e[5m- Joining files...\e[0m'
 cat arm-linux-gnueabi.tar.xz.part* > arm-linux-gnueabi.tar.xz
-echo "- Unpacking files"
-tar xf 'arm-linux-gnueabi.tar.xz'
-if [ $? -ne 0 ]
-then
- echo "Unable to prepare the toolchain, please check the errors above."
- exit 1
-fi
+clrln
+printf '\e[92m+ Joining files\e[0m'
+printf '\n\e[5m- Unpacking files...\e[0m'
+tar xf 'arm-linux-gnueabi.tar.xz' || fail 'Unable to prepare the toolchain, please check the errors above.'
+clrln
+printf '\e[92m+ Unpacking files...\e[0m'
 cd $KERNEL_DIR
 
 export ARCH=arm
 # export KBUILD_BUILD_HOST="SEND_NUDES__PLEASE"
 export CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-linux-gnueabi-
 export USE_CCACHE=1
-
-if [ -e  arch/arm/boot/zImage ];
-then
-rm arch/arm/boot/zImage #Just to make sure it doesn't make flashable zip with previous zImage
-fi;
-
 export DEVICE="$2"
 export KBUILD_BUILD_USER="$3"
 Anykernel_DIR=$KERNEL_DIR/Anykernel2/$DEVICE
@@ -47,59 +76,44 @@ then
 else
  t=$1
 fi
+# Clean if 4th parameter is 'clean'
+if [ "$4" == 'clean' ]
+then
+ make -j$t clean
+fi
 GCCV=$("$CROSS_COMPILE"gcc -v 2>&1 | tail -1 | cut -d ' ' -f 3)
-printf "\nTHREADS: $t\nDEVICE: $2\nMAINTAINER: $3\nGCC VERSION: $GCCV\n\n"
+printf "\n\n\e[1mTHREADS: \e[0m$t\n\e[1mDEVICE: \e[0m$2\n\e[1mMAINTAINER: \e[0m$3\n\e[1mGCC VERSION: \e[0m$GCCV\n\n"
 echo "=> Making kernel binary..."
 make $2_defconfig
-make -j$t zImage
-if [ $? -ne 0 ]
-then
- echo "Kernel compilation failed, can't continue."
- exit 1
-fi
+make -j$t zImage || fail "Kernel compilation failed, can't continue."
 echo "=> Making modules..."
-make -j$t modules
-if [ $? -ne 0 ]
-then
- echo "Module compilation failed, can't continue."
- exit 1
-fi
-make -j$t modules_install INSTALL_MOD_PATH=modules INSTALL_MOD_STRIP=1
-if [ $? -ne 0 ]
-then
- echo "Module installation failed, can't continue."
- exit 1
-fi
+make -j$t modules || fail "Module compilation failed, can't continue."
+make -j$t modules_install INSTALL_MOD_PATH=modules INSTALL_MOD_STRIP=1 || fail "Module installation failed, can't continue."
 mkdir -p "$Anykernel_DIR/modules/system/lib/modules/pronto"
 find modules/ -name '*.ko' -type f -exec cp '{}' "$Anykernel_DIR/modules/system/lib/modules/" \;
 cp "$Anykernel_DIR/modules/system/lib/modules/wlan.ko" "$Anykernel_DIR/modules/system/lib/modules/pronto/pronto_wlan.ko"
 
-echo "Kernel compilation completed"
+ok 'Kernel compilation completed'
 
-cp  $KERNEL_DIR/arch/arm/boot/zImage $Anykernel_DIR
+cp $KERNEL_DIR/arch/arm/boot/zImage $Anykernel_DIR
 
 cd $Anykernel_DIR
 
-echo "Making Flashable zip"
+printf '\n=> Making flashable zip\n'
 
-echo "Generating changelog"
+echo '  => Generating changelog'
 
-if [ -e $Anykernel_DIR/changelog.txt ];
+if [ -e $Anykernel_DIR/changelog.txt ]
 then
-rm $Anykernel_DIR/changelog.txt
-fi;
+ rm $Anykernel_DIR/changelog.txt
+fi
 
 git log --graph --pretty=format:'%s' --abbrev-commit -n 200  > changelog.txt
 
-echo "Changelog generated"
-
-if [ -e $Anykernel_DIR/*.zip ];
-then
-rm *.zip
-fi;
+echo "  - Changelog generated"
 
 zip -r9 $FINAL_ZIP * -x *.zip $FINAL_ZIP > /dev/null
 
-echo "Flashable zip Created"
-echo "Flashable zip is stored in $Anykernel_DIR folder with name $FINAL_ZIP"
+ok 'Flashable zip created'
+printf "\n\e[1mRESULT: \e[0m%s""$Anykernel_DIR/$FINAL_ZIP\n"
 exit 0
